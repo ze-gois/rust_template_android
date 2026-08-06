@@ -1,0 +1,11 @@
+# Generated build outputs
+/build/
+/rust/target/
+
+# APK signing sidecars and local signing material
+*.apk.idsig
+*.keystore
+*.jks
+
+# Local machine configuration
+local.properties
