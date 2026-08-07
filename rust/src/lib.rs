@@ -6,7 +6,7 @@ pub extern "system" fn Java_com_zegois_demo_MainActivity_answer(
     _env: *mut core::ffi::c_void,
     _this: *mut core::ffi::c_void,
 ) -> i32 {
-    41
+    42
 }
 
 /// Calcula Fibonacci sem alocar memória e retorna um long Java (i64 Rust).
@@ -68,4 +68,79 @@ pub extern "system" fn Java_com_zegois_demo_MainActivity_transform(
     result ^= result >> 17;
     result ^= result << 5;
     result as i32
+}
+
+// Tipos mínimos necessários para acessar um jintArray sem o jni crate.
+// Os índices dos dois métodos abaixo correspondem à tabela JNINativeInterface
+// do jni.h fornecido pelo NDK: GetIntArrayElements = 187 e
+// ReleaseIntArrayElements = 195.
+type JNIEnv = *const JNINativeInterface;
+type JIntArray = *mut core::ffi::c_void;
+type JBoolean = u8;
+type JInt = i32;
+
+#[repr(C)]
+pub struct JNINativeInterface {
+    _prefix: [*const core::ffi::c_void; 187],
+    get_int_array_elements:
+        unsafe extern "system" fn(*mut JNIEnv, JIntArray, *mut JBoolean) -> *mut JInt,
+    _between_arrays: [*const core::ffi::c_void; 7],
+    release_int_array_elements: unsafe extern "system" fn(*mut JNIEnv, JIntArray, *mut JInt, JInt),
+}
+
+/// Recebe pixels ARGB produzidos pela Camera2, aplica um filtro de cor
+/// diretamente no array Java e devolve o número de pixels processados.
+///
+/// O filtro calcula luminância e cria uma paleta falsa: vermelho representa
+/// regiões claras, azul representa regiões escuras. O processamento é
+/// intencionalmente simples para que o custo da passagem JNI fique visível.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_zegois_demo_NativeCameraActivity_processFrame(
+    env: *mut JNIEnv,
+    _this: *mut core::ffi::c_void,
+    pixels: JIntArray,
+    width: JInt,
+    height: JInt,
+) -> JInt {
+    if env.is_null() || pixels.is_null() || width <= 0 || height <= 0 {
+        return 0;
+    }
+
+    let count = match (width as usize).checked_mul(height as usize) {
+        Some(value) => value,
+        None => return 0,
+    };
+
+    let table = unsafe { *env };
+    if table.is_null() {
+        return 0;
+    }
+
+    let mut is_copy: JBoolean = 0;
+    let raw_pixels = unsafe { ((*table).get_int_array_elements)(env, pixels, &mut is_copy) };
+    if raw_pixels.is_null() {
+        return 0;
+    }
+
+    unsafe {
+        let buffer = core::slice::from_raw_parts_mut(raw_pixels, count);
+        for pixel in buffer.iter_mut() {
+            let red = ((*pixel as u32 >> 16) & 0xff) as u32;
+            let green = ((*pixel as u32 >> 8) & 0xff) as u32;
+            let blue = (*pixel as u32 & 0xff) as u32;
+            let luminance = (77 * red + 150 * green + 29 * blue) >> 8;
+
+            let filtered_red = (luminance * 2).min(255);
+            let filtered_green = (luminance * 3 / 4).min(255);
+            let filtered_blue = 255 - luminance;
+            *pixel =
+                (0xff00_0000_u32 | (filtered_red << 16) | (filtered_green << 8) | filtered_blue)
+                    as i32;
+        }
+
+        // mode 0 = copiar as alterações de volta para o array Java.
+        ((*table).release_int_array_elements)(env, pixels, raw_pixels, 0);
+    }
+
+    count.min(JInt::MAX as usize) as JInt
 }

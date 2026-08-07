@@ -150,3 +150,7 @@ print ""
 print "APK criado: $DEBUG_APK"
 print "Activity: $ACTIVITY_NAME"
 print "JNI: Java_com_zegois_demo_MainActivity_answer"
+
+adb install -r "$BUILD_ROOT/apk/debug.apk"
+adb shell am force-stop com.zegois.demo
+adb shell am start -n com.zegois.demo/.MainActivity
