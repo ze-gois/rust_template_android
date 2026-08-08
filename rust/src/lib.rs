@@ -6,7 +6,7 @@ pub extern "system" fn Java_com_zegois_demo_MainActivity_answer(
     _env: *mut core::ffi::c_void,
     _this: *mut core::ffi::c_void,
 ) -> i32 {
-    42
+    420
 }
 
 /// Calcula Fibonacci sem alocar memória e retorna um long Java (i64 Rust).

@@ -23,6 +23,7 @@ export ANDROID_NDK="$(
 export ANDROID_TOOLCHAIN="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64"
 
 export ANDROID_AARCH64_LINKER="$ANDROID_TOOLCHAIN/bin/aarch64-linux-android${ANDROID_MIN_API}-clang"
+export ANDROID_X86_64_LINKER="$ANDROID_TOOLCHAIN/bin/x86_64-linux-android${ANDROID_MIN_API}-clang"
 
 export ANDROID_PLATFORM="$(
     find "$ANDROID_HOME/platforms" \
